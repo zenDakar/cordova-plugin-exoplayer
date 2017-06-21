@@ -138,22 +138,6 @@ public class Payload {
         Map<String, String> map = new HashMap<String, String>();
         map.put("eventType", "PLAYER_ERROR_EVENT");
 
-        try {
-            ActivityManager activityManager = (ActivityManager)activity.getSystemService(ACTIVITY_SERVICE);
-            ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo();
-            activityManager.getMemoryInfo(memoryInfo);
-            JSONObject jsonMemInfo = new JSONObject();
-
-            jsonMemInfo.put("availMem", memoryInfo.availMem);
-            jsonMemInfo.put("totalMem", memoryInfo.totalMem);
-            jsonMemInfo.put("threshold", memoryInfo.threshold);
-            jsonMemInfo.put("lowMemory", memoryInfo.lowMemory);
-            map.put("memoryInfo", jsonMemInfo.toString());
-        } catch (JSONException e) {
-            //Do nothing
-        }
-
-
         if (null != origin) {
             type = origin.type;
             Throwable error = (Throwable) origin;
