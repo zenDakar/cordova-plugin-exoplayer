@@ -24,7 +24,6 @@
 package co.frontyard.cordova.plugin.exoplayer;
 
 import android.net.*;
-import android.view.ViewGroup;
 import org.apache.cordova.*;
 import org.json.*;
 
@@ -35,7 +34,7 @@ public class Plugin extends CordovaPlugin {
     public boolean execute(final String action, final JSONArray data, final CallbackContext callbackContext) throws JSONException {
         try {
             final Plugin self = this;
-            if (action.equals("show")) {
+            if (action.equals("setup")) {
                 cordova.getActivity().runOnUiThread(new Runnable() {
                     public void run() {
                         if (self.player != null) {
@@ -54,10 +53,9 @@ public class Plugin extends CordovaPlugin {
                     return false;
                 }
                 final String url = data.optString(0, null);
-                final JSONObject controller = data.optJSONObject(1);
                 cordova.getActivity().runOnUiThread(new Runnable() {
                     public void run() {
-                        self.player.setStream(Uri.parse(url), controller);
+                        self.player.setStream(Uri.parse(url));
                         new CallbackResponse(callbackContext).send(PluginResult.Status.NO_RESULT, true);
                     }
                 });
@@ -97,30 +95,6 @@ public class Plugin extends CordovaPlugin {
                     public void run() {
                         JSONObject response = self.player.getPlayerState();
                         new CallbackResponse(callbackContext).send(PluginResult.Status.OK, response, false);
-                    }
-                });
-                return true;
-            }
-            else if (action.equals("showController")) {
-                if (self.player == null) {
-                    return false;
-                }
-                cordova.getActivity().runOnUiThread(new Runnable() {
-                    public void run() {
-                        self.player.showController();
-                        new CallbackResponse(callbackContext).send(PluginResult.Status.NO_RESULT, true);
-                    }
-                });
-                return true;
-            }
-            else if (action.equals("hideController")) {
-                if (self.player == null) {
-                    return false;
-                }
-                cordova.getActivity().runOnUiThread(new Runnable() {
-                    public void run() {
-                        self.player.hideController();
-                        new CallbackResponse(callbackContext).send(PluginResult.Status.NO_RESULT, true);
                     }
                 });
                 return true;

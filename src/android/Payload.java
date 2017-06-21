@@ -23,6 +23,8 @@
  */
 package co.frontyard.cordova.plugin.exoplayer;
 
+import android.app.Activity;
+import android.app.ActivityManager;
 import android.view.*;
 import com.google.android.exoplayer2.*;
 import java.lang.*;
@@ -31,7 +33,11 @@ import java.lang.Integer;
 import java.lang.StackTraceElement;
 import java.lang.StringBuffer;
 import java.util.*;
+
+import org.apache.cordova.CordovaActivity;
 import org.json.*;
+
+import static android.content.Context.ACTIVITY_SERVICE;
 
 public class Payload {
 
@@ -127,10 +133,26 @@ public class Payload {
         return new JSONObject(map);
     }
 
-    public static JSONObject playerErrorEvent(ExoPlayer player, ExoPlaybackException origin, String message) {
+    public static JSONObject playerErrorEvent(ExoPlayer player, Activity activity, ExoPlaybackException origin, String message) {
         int type = 0;
         Map<String, String> map = new HashMap<String, String>();
         map.put("eventType", "PLAYER_ERROR_EVENT");
+
+        try {
+            ActivityManager activityManager = (ActivityManager)activity.getSystemService(ACTIVITY_SERVICE);
+            ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo();
+            activityManager.getMemoryInfo(memoryInfo);
+            JSONObject jsonMemInfo = new JSONObject();
+
+            jsonMemInfo.put("availMem", memoryInfo.availMem);
+            jsonMemInfo.put("totalMem", memoryInfo.totalMem);
+            jsonMemInfo.put("threshold", memoryInfo.threshold);
+            jsonMemInfo.put("lowMemory", memoryInfo.lowMemory);
+            map.put("memoryInfo", jsonMemInfo.toString());
+        } catch (JSONException e) {
+            //Do nothing
+        }
+
 
         if (null != origin) {
             type = origin.type;

@@ -28,6 +28,7 @@ import android.content.*;
 import android.media.*;
 import android.net.*;
 import android.os.*;
+import android.support.v4.content.ContextCompat;
 import android.util.*;
 import android.view.*;
 import android.widget.*;
@@ -41,19 +42,20 @@ import com.google.android.exoplayer2.trackselection.*;
 import com.google.android.exoplayer2.ui.*;
 import com.google.android.exoplayer2.upstream.*;
 import com.google.android.exoplayer2.util.*;
-import com.squareup.picasso.*;
 import java.lang.*;
 import java.lang.Math;
 import java.lang.Override;
+
 import org.apache.cordova.*;
 import org.json.*;
+
+import io.cordova.hellocordova.R;
 
 public class Player {
     private static final String TAG = "ExoPlayerPlugin";
     private final Activity activity;
     private final CallbackContext callbackContext;
     private final Configuration config;
-    private Dialog dialog;
     private SimpleExoPlayer exoPlayer;
     private SimpleExoPlayerView exoView;
     private CordovaWebView webView;
@@ -67,6 +69,11 @@ public class Player {
         this.callbackContext = callbackContext;
         this.webView = webView;
         this.audioManager = (AudioManager) activity.getSystemService(Context.AUDIO_SERVICE);
+        
+        ActivityManager activityManager = (ActivityManager)activity.getSystemService(Context.ACTIVITY_SERVICE);
+        ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo();
+        activityManager.getMemoryInfo(memoryInfo);
+        Log.d(TAG, "MEM: avail: " + memoryInfo.availMem + ", total: " + memoryInfo.totalMem + ", lowMem: " + memoryInfo.lowMemory + ", threshold: " + memoryInfo.threshold);
     }
 
     private ExoPlayer.EventListener playerEventListener = new ExoPlayer.EventListener() {
@@ -77,7 +84,7 @@ public class Player {
 
         @Override
         public void onPlayerError(ExoPlaybackException error) {
-            JSONObject payload = Payload.playerErrorEvent(Player.this.exoPlayer, error, null);
+            JSONObject payload = Payload.playerErrorEvent(Player.this.exoPlayer, Player.this.activity, error, null);
             new CallbackResponse(Player.this.callbackContext).send(PluginResult.Status.ERROR, payload, true);
         }
 
@@ -110,59 +117,6 @@ public class Player {
         }
     };
 
-    private DialogInterface.OnDismissListener dismissListener = new DialogInterface.OnDismissListener() {
-        @Override
-        public void onDismiss(DialogInterface dialog) {
-            if (exoPlayer != null) {
-                exoPlayer.release();
-            }
-            exoPlayer = null;
-            JSONObject payload = Payload.stopEvent(exoPlayer);
-            new CallbackResponse(Player.this.callbackContext).send(PluginResult.Status.OK, payload, true);
-        }
-    };
-
-    private DialogInterface.OnKeyListener onKeyListener = new DialogInterface.OnKeyListener() {
-        @Override
-        public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
-            int action = event.getAction();
-            String key = KeyEvent.keyCodeToString(event.getKeyCode());
-            // We need android to handle these key events
-            if (key.equals("KEYCODE_VOLUME_UP") ||
-                    key.equals("KEYCODE_VOLUME_DOWN") ||
-                    key.equals("KEYCODE_VOLUME_MUTE")) {
-                return false;
-            }
-            else {
-                JSONObject payload = Payload.keyEvent(event);
-                new CallbackResponse(Player.this.callbackContext).send(PluginResult.Status.OK, payload, true);
-                return true;
-            }
-        }
-    };
-
-    private View.OnTouchListener onTouchListener = new View.OnTouchListener() {
-        int previousAction = -1;
-
-        @Override
-        public boolean onTouch(View v, MotionEvent event) {
-            int eventAction = event.getAction();
-            if (previousAction != eventAction) {
-                previousAction = eventAction;
-                JSONObject payload = Payload.touchEvent(event);
-                new CallbackResponse(Player.this.callbackContext).send(PluginResult.Status.OK, payload, true);
-            }
-            return true;
-        }
-    };
-
-    private PlaybackControlView.VisibilityListener playbackControlVisibilityListener = new PlaybackControlView.VisibilityListener() {
-        @Override
-        public void onVisibilityChange(int visibility) {
-            Player.this.controllerVisibility = visibility;
-        }
-    };
-
     private AudioManager.OnAudioFocusChangeListener audioFocusChangeListener = new AudioManager.OnAudioFocusChangeListener() {
         public void onAudioFocusChange(int focusChange) {
             if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
@@ -190,39 +144,37 @@ public class Player {
 
     public void createPlayer() {
         if (!config.isAudioOnly()) {
-            createDialog();
+            createView();
         }
         preparePlayer(config.getUri());
     }
 
-    public void createDialog() {
-        dialog = new Dialog(this.activity, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
-        dialog.setOnKeyListener(onKeyListener);
-        dialog.getWindow().getAttributes().windowAnimations = android.R.style.Animation_Dialog;
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        View decorView = dialog.getWindow().getDecorView();
-        int uiOptions = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
-        decorView.setSystemUiVisibility(uiOptions);
-        dialog.setCancelable(true);
-        dialog.setOnDismissListener(dismissListener);
+    public void createView() {
+        exoView = new SimpleExoPlayerView(this.activity);
 
-        FrameLayout mainLayout = LayoutProvider.getMainLayout(this.activity);
-        exoView = LayoutProvider.getExoPlayer(this.activity, config);
-        exoView.setControllerVisibilityListener(playbackControlVisibilityListener);
+        exoView .setLayoutParams(new LinearLayout.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT));
+        if (config.isAspectRatioFillScreen()) {
+            exoView .setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
+        }
+        exoView .setFastForwardIncrementMs(config.getSkipTimeMs());
+        exoView .setRewindIncrementMs(config.getSkipTimeMs());
+        exoView .setKeepScreenOn(true);
+        exoView .setUseController(false);
+                
+        //Insert the exoView below the cordova webView
+        FrameLayout webViewParent = (FrameLayout)webView.getView().getParent();
+        webViewParent.setBackgroundColor(ContextCompat.getColor(activity.getApplicationContext(), R.color.webview_background_color));
+        webViewParent.addView(exoView, 0);
 
-        mainLayout.addView(exoView);
-        dialog.setContentView(mainLayout);
-        dialog.show();
+        //Make webView transparent
+        webView.getView().setBackgroundColor(ContextCompat.getColor(activity.getApplicationContext(), R.color.transparent));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+          webView.getView().setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        } else {
+          webView.getView().setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        }
 
-        dialog.getWindow().setAttributes(LayoutProvider.getDialogLayoutParams(activity, config, dialog));
         exoView.requestFocus();
-        exoView.setOnTouchListener(onTouchListener);
-        LayoutProvider.setupController(exoView, activity, config.getController());
     }
 
     private int setupAudio() {
@@ -242,7 +194,7 @@ public class Player {
 
         exoPlayer = ExoPlayerFactory.newSimpleInstance(this.activity, trackSelector, loadControl);
         exoPlayer.addListener(playerEventListener);
-        if (null != exoView) {
+        if (exoView != null) {
             exoView.setPlayer(exoPlayer);
         }
 
@@ -296,7 +248,7 @@ public class Player {
         }
 
         String subtitleUrl = config.getSubtitleUrl();
-        if (null != subtitleUrl) {
+        if (subtitleUrl != null) {
             Uri subtitleUri = Uri.parse(subtitleUrl);
             String subtitleType = inferSubtitleType(subtitleUri);
             Log.i(TAG, "Subtitle present: " + subtitleUri + ", type=" + subtitleType);
@@ -327,21 +279,15 @@ public class Player {
             exoPlayer.release();
             exoPlayer = null;
         }
-        if (this.dialog != null) {
-            dialog.dismiss();
-        }
     }
 
-    public void setStream(Uri uri, JSONObject controller) {
+    public void setStream(Uri uri) {
         if (null != uri) {
             DefaultBandwidthMeter bandwidthMeter = new DefaultBandwidthMeter();
             MediaSource mediaSource = getMediaSource(uri, bandwidthMeter);
             exoPlayer.prepare(mediaSource);
             play();
-        }
-        if (null != exoView) {
-            LayoutProvider.setupController(exoView, activity, controller);
-        }
+        }        
     }
 
     public void playPause() {
@@ -376,21 +322,9 @@ public class Player {
                 Player.this.controllerVisibility == View.VISIBLE);
     }
 
-    public void showController() {
-        if (null != exoView) {
-            exoView.showController();
-        }
-    }
-
-    public void hideController() {
-        if (null != exoView) {
-            exoView.hideController();
-        }
-    }
-
     private void sendError(String msg) {
         Log.e(TAG, msg);
-        JSONObject payload = Payload.playerErrorEvent(Player.this.exoPlayer, null, msg);
+        JSONObject payload = Payload.playerErrorEvent(Player.this.exoPlayer, Player.this.activity, null, msg);
         new CallbackResponse(Player.this.callbackContext).send(PluginResult.Status.ERROR, payload, true);
     }
 }
