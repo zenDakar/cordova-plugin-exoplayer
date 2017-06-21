@@ -122,22 +122,18 @@ public class Player {
             if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
                 JSONObject payload = Payload.audioFocusEvent(Player.this.exoPlayer, "AUDIOFOCUS_LOSS_TRANSIENT");
                 new CallbackResponse(Player.this.callbackContext).send(PluginResult.Status.OK, payload, true);
-                Player.this.pause();
             }
             else if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
                 JSONObject payload = Payload.audioFocusEvent(Player.this.exoPlayer, "AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK");
                 new CallbackResponse(Player.this.callbackContext).send(PluginResult.Status.OK, payload, true);
-                Player.this.pause();
             }
             else if (focusChange == AudioManager.AUDIOFOCUS_GAIN) {
                 JSONObject payload = Payload.audioFocusEvent(Player.this.exoPlayer, "AUDIOFOCUS_GAIN");
                 new CallbackResponse(Player.this.callbackContext).send(PluginResult.Status.OK, payload, true);
-                Player.this.play();
             }
             else if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
                 JSONObject payload = Payload.audioFocusEvent(Player.this.exoPlayer, "AUDIOFOCUS_LOSS");
                 new CallbackResponse(Player.this.callbackContext).send(PluginResult.Status.OK, payload, true);
-                Player.this.close();
             }
         }
     };
@@ -307,6 +303,11 @@ public class Player {
     private void play() {
         paused = false;
         exoPlayer.setPlayWhenReady(true);
+    }
+
+    public void stop() {
+        paused = false;
+        exoPlayer.stop();
     }
 
     public void seekTo(long timeMillis) {
