@@ -50,4 +50,22 @@ public class CallbackResponse {
         result.setKeepCallback(keepCallback);
         callbackContext.sendPluginResult(result);
     }
+
+    public void send(PluginResult.Status status, float f, boolean keepCallback) {
+        if (callbackContext == null) {
+            return;
+        }
+        PluginResult result = new PluginResult(status, f);
+        result.setKeepCallback(keepCallback);
+        callbackContext.sendPluginResult(result);
+    }
+
+    public void send(PluginResult.Status status, long l, boolean keepCallback) {
+        if (callbackContext == null) {
+            return;
+        }
+        PluginResult result = new PluginResult(status, l);
+        result.setKeepCallback(keepCallback);
+        callbackContext.sendPluginResult(result);
+    }
 }

@@ -32,20 +32,32 @@ module.exports = {
     playPause: function (successCallback, errorCallback) {
         cordova.exec(successCallback, errorCallback, "ExoPlayer", "playPause", []);
     },
+    play: function (milliseconds, successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, "ExoPlayer", "play", [milliseconds]);
+    },
+    pause: function (successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, "ExoPlayer", "pause", []);
+    },
     stop: function (successCallback, errorCallback) {
         cordova.exec(successCallback, errorCallback, "ExoPlayer", "stop", []);
     },
     seekTo: function (milliseconds, successCallback, errorCallback) {
         cordova.exec(successCallback, errorCallback, "ExoPlayer", "seekTo", [milliseconds]);
     },
+    setPlaybackRate: function (speed, muteAudio, successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, "ExoPlayer", "setPlaybackRate", [speed, muteAudio]);
+    },
+    getPlaybackRate: function (successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, "ExoPlayer", "getPlaybackRate", []);
+    },
+    getDuration: function (successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, "ExoPlayer", "getDuration", []);
+    },
+    getPosition: function (successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, "ExoPlayer", "getPosition", []);
+    },
     getState: function (successCallback, errorCallback) {
         cordova.exec(successCallback, errorCallback, "ExoPlayer", "getState", []);
-    },
-    showController: function (successCallback, errorCallback) {
-        cordova.exec(successCallback, errorCallback, "ExoPlayer", "showController", []);
-    },
-    hideController: function (successCallback, errorCallback) {
-        cordova.exec(successCallback, errorCallback, "ExoPlayer", "hideController", []);
     },
     close: function (successCallback, errorCallback) {
         cordova.exec(successCallback, errorCallback, "ExoPlayer", "close", []);

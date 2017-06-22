@@ -15,16 +15,16 @@
     <js-module src="www/exoplayer.js" name="ExoPlayer">
         <clobbers target="ExoPlayer"/>
     </js-module>
-  
+
     <platform name="android">
-        <framework src="com.google.android.exoplayer:exoplayer:r2.4.0"/>
+        <framework src="com.google.android.exoplayer:exoplayer:r2.4.2"/>
 
         <config-file target="res/xml/config.xml" parent="/*">
             <feature name="ExoPlayer">
                 <param name="android-package" value="co.frontyard.cordova.plugin.exoplayer.Plugin"/>
             </feature>
         </config-file>
-        
+
         <source-file src="src/res/values/colors.xml" target-dir="res/values/"/>
         <source-file src="src/res/values/ids.xml" target-dir="res/values/"/>
 

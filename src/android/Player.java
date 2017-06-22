@@ -61,6 +61,7 @@ public class Player {
     private CordovaWebView webView;
     private int controllerVisibility;
     private boolean paused = false;
+    private float currentPlaybackRate = 1.0f;
     private AudioManager audioManager;
 
     public Player(Configuration config, Activity activity, CallbackContext callbackContext, CordovaWebView webView) {
@@ -69,7 +70,7 @@ public class Player {
         this.callbackContext = callbackContext;
         this.webView = webView;
         this.audioManager = (AudioManager) activity.getSystemService(Context.AUDIO_SERVICE);
-        
+
         ActivityManager activityManager = (ActivityManager)activity.getSystemService(Context.ACTIVITY_SERVICE);
         ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo();
         activityManager.getMemoryInfo(memoryInfo);
@@ -96,7 +97,7 @@ public class Player {
 
         @Override
         public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
-            JSONObject payload = Payload.stateEvent(Player.this.exoPlayer, playbackState, Player.this.controllerVisibility == View.VISIBLE);
+            JSONObject payload = Payload.stateEvent(Player.this.exoPlayer, playbackState, Player.this.currentPlaybackRate);
             new CallbackResponse(Player.this.callbackContext).send(PluginResult.Status.OK, payload, true);
         }
 
@@ -150,13 +151,13 @@ public class Player {
 
         exoView .setLayoutParams(new LinearLayout.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT));
         if (config.isAspectRatioFillScreen()) {
-            exoView .setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
+            exoView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
         }
-        exoView .setFastForwardIncrementMs(config.getSkipTimeMs());
-        exoView .setRewindIncrementMs(config.getSkipTimeMs());
-        exoView .setKeepScreenOn(true);
-        exoView .setUseController(false);
-                
+        exoView.setFastForwardIncrementMs(config.getSkipTimeMs());
+        exoView.setRewindIncrementMs(config.getSkipTimeMs());
+        exoView.setKeepScreenOn(true);
+        exoView.setUseController(false);
+
         //Insert the exoView below the cordova webView
         FrameLayout webViewParent = (FrameLayout)webView.getView().getParent();
         webViewParent.setBackgroundColor(ContextCompat.getColor(activity.getApplicationContext(), R.color.webview_background_color));
@@ -283,7 +284,7 @@ public class Player {
             MediaSource mediaSource = getMediaSource(uri, bandwidthMeter);
             exoPlayer.prepare(mediaSource);
             play();
-        }        
+        }
     }
 
     public void playPause() {
@@ -295,14 +296,25 @@ public class Player {
         }
     }
 
-    private void pause() {
-        paused = true;
-        exoPlayer.setPlayWhenReady(false);
+    public void pause() {
+        if (!paused) {
+            paused = true;
+            exoPlayer.setPlayWhenReady(false);
+        }
     }
 
-    private void play() {
+    public void play() {
         paused = false;
         exoPlayer.setPlayWhenReady(true);
+    }
+
+    public void play(long timeMillis) {
+        long duration = exoPlayer.getDuration();
+        if (duration > 0 && timeMillis > 0 && timeMillis < duration) {
+            exoPlayer.seekTo(timeMillis);
+        }
+
+        play();
     }
 
     public void stop() {
@@ -317,10 +329,31 @@ public class Player {
         new CallbackResponse(Player.this.callbackContext).send(PluginResult.Status.OK, payload, true);
     }
 
+    public void setPlaybackRate(float speed, boolean muteAudio) {
+          if (Math.abs(speed) >= 32) {
+            speed = 1;
+          }
+
+          currentPlaybackRate = speed;
+
+          exoPlayer.setPlaybackParameters(new PlaybackParameters(speed,1));
+    }
+
+    public float getPlaybackRate() {
+        return currentPlaybackRate;
+    }
+
+    public long getDuration() {
+        return exoPlayer.getDuration();
+    }
+
+    public long getPosition() {
+        return exoPlayer.getCurrentPosition();
+    }
+
     public JSONObject getPlayerState() {
         return Payload.stateEvent(exoPlayer,
-                null != exoPlayer ? exoPlayer.getPlaybackState() : SimpleExoPlayer.STATE_ENDED,
-                Player.this.controllerVisibility == View.VISIBLE);
+                null != exoPlayer ? exoPlayer.getPlaybackState() : SimpleExoPlayer.STATE_ENDED, Player.this.currentPlaybackRate);
     }
 
     private void sendError(String msg) {

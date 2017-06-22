@@ -74,6 +74,33 @@ public class Plugin extends CordovaPlugin {
 
                 return true;
             }
+            else if (action.equals("play")) {
+                if (self.player == null) {
+                    return false;
+                }
+                final long seekTime = data.optLong(0, -1);
+                cordova.getActivity().runOnUiThread(new Runnable() {
+                    public void run() {
+                        self.player.play(seekTime);
+                        new CallbackResponse(callbackContext).send(PluginResult.Status.NO_RESULT, true);
+                    }
+                });
+
+                return true;
+            }
+            else if (action.equals("pause")) {
+                if (self.player == null) {
+                    return false;
+                }
+                cordova.getActivity().runOnUiThread(new Runnable() {
+                    public void run() {
+                        self.player.pause();
+                        new CallbackResponse(callbackContext).send(PluginResult.Status.NO_RESULT, true);
+                    }
+                });
+
+                return true;
+            }
             else if (action.equals("stop")) {
                 if (self.player == null) {
                     return false;
@@ -96,6 +123,56 @@ public class Plugin extends CordovaPlugin {
                     public void run() {
                         self.player.seekTo(seekTime);
                         new CallbackResponse(callbackContext).send(PluginResult.Status.NO_RESULT, true);
+                    }
+                });
+                return true;
+            }
+            else if (action.equals("setPlaybackRate")) {
+                if (self.player == null) {
+                    return false;
+                }
+                final float speed = (float)data.optDouble(0, 1);
+                final boolean muteAudio = data.optBoolean(1, false);
+                cordova.getActivity().runOnUiThread(new Runnable() {
+                    public void run() {
+                        self.player.setPlaybackRate(speed, muteAudio);
+                        new CallbackResponse(callbackContext).send(PluginResult.Status.NO_RESULT, true);
+                    }
+                });
+                return true;
+            }
+            else if (action.equals("getPlaybackRate")) {
+                if (self.player == null) {
+                    return false;
+                }
+                cordova.getThreadPool().execute(new Runnable() {
+                    public void run() {
+                        float response = self.player.getPlaybackRate();
+                        new CallbackResponse(callbackContext).send(PluginResult.Status.OK, response, false);
+                    }
+                });
+                return true;
+            }
+            else if (action.equals("getDuration")) {
+                if (self.player == null) {
+                    return false;
+                }
+                cordova.getThreadPool().execute(new Runnable() {
+                    public void run() {
+                        long response = self.player.getDuration();
+                        new CallbackResponse(callbackContext).send(PluginResult.Status.OK, response, false);
+                    }
+                });
+                return true;
+            }
+            else if (action.equals("getPosition")) {
+                if (self.player == null) {
+                    return false;
+                }
+                cordova.getThreadPool().execute(new Runnable() {
+                    public void run() {
+                        long response = self.player.getPosition();
+                        new CallbackResponse(callbackContext).send(PluginResult.Status.OK, response, false);
                     }
                 });
                 return true;
