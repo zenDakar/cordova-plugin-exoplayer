@@ -60,8 +60,8 @@ public class Configuration {
         return config.optLong("seekTo", -1);
     }
 
-    public final JSONObject getController() {
-        return config.optJSONObject("controller");
+    public int getMaxPlaybackRate() {
+        return config.optInt("maxPlaybackRate", 16);
     }
 
     public int getHideTimeout() {

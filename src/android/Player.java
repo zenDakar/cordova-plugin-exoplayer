@@ -49,18 +49,18 @@ import java.lang.Override;
 import org.apache.cordova.*;
 import org.json.*;
 
-import io.cordova.hellocordova.R;
-
 public class Player {
     private static final String TAG = "ExoPlayerPlugin";
     private final Activity activity;
     private final CallbackContext callbackContext;
     private final Configuration config;
+    private final Handler handler = new Handler();
     private SimpleExoPlayer exoPlayer;
     private SimpleExoPlayerView exoView;
     private CordovaWebView webView;
     private int controllerVisibility;
     private boolean paused = false;
+    private boolean seeking = false;
     private float currentPlaybackRate = 1.0f;
     private AudioManager audioManager;
 
@@ -160,15 +160,17 @@ public class Player {
 
         //Insert the exoView below the cordova webView
         FrameLayout webViewParent = (FrameLayout)webView.getView().getParent();
-        webViewParent.setBackgroundColor(ContextCompat.getColor(activity.getApplicationContext(), R.color.webview_background_color));
+        int colorResId = activity.getResources().getIdentifier("webview_background_color", "color", activity.getPackageName());
+        webViewParent.setBackgroundColor(ContextCompat.getColor(activity.getApplicationContext(), colorResId));
         webViewParent.addView(exoView, 0);
 
         //Make webView transparent
-        webView.getView().setBackgroundColor(ContextCompat.getColor(activity.getApplicationContext(), R.color.transparent));
+        colorResId = activity.getResources().getIdentifier("transparent", "color", activity.getPackageName());
+        webView.getView().setBackgroundColor(ContextCompat.getColor(activity.getApplicationContext(), colorResId));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-          webView.getView().setLayerType(View.LAYER_TYPE_HARDWARE, null);
+            webView.getView().setLayerType(View.LAYER_TYPE_HARDWARE, null);
         } else {
-          webView.getView().setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+            webView.getView().setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         }
 
         exoView.requestFocus();
@@ -205,8 +207,7 @@ public class Player {
             exoPlayer.setPlayWhenReady(true);
             JSONObject payload = Payload.startEvent(exoPlayer, audioFocusString);
             new CallbackResponse(Player.this.callbackContext).send(PluginResult.Status.OK, payload, true);
-        }
-        else {
+        } else {
             sendError("Failed to construct mediaSource for " + uri);
         }
     }
@@ -252,8 +253,7 @@ public class Player {
             Format textFormat = Format.createTextSampleFormat(null, subtitleType, null, Format.NO_VALUE, Format.NO_VALUE, "en", null);
             MediaSource subtitleSource = new SingleSampleMediaSource(subtitleUri, httpDataSourceFactory, textFormat, C.TIME_UNSET);
             return new MergingMediaSource(mediaSource, subtitleSource);
-        }
-        else {
+        } else {
             return mediaSource;
         }
     }
@@ -263,8 +263,7 @@ public class Player {
 
         if (fileName.endsWith(".vtt")) {
             return MimeTypes.TEXT_VTT;
-        }
-        else {
+        } else {
             // Assume it's srt.
             return MimeTypes.APPLICATION_SUBRIP;
         }
@@ -279,7 +278,7 @@ public class Player {
     }
 
     public void setStream(Uri uri) {
-        if (null != uri) {
+        if (uri != null) {
             DefaultBandwidthMeter bandwidthMeter = new DefaultBandwidthMeter();
             MediaSource mediaSource = getMediaSource(uri, bandwidthMeter);
             exoPlayer.prepare(mediaSource);
@@ -290,8 +289,7 @@ public class Player {
     public void playPause() {
         if (this.paused) {
             play();
-        }
-        else {
+        } else {
             pause();
         }
     }
@@ -299,12 +297,20 @@ public class Player {
     public void pause() {
         if (!paused) {
             paused = true;
+            stopSeek();
+            if (currentPlaybackRate != 1) {
+                setPlaybackRate(1, false);
+            }
             exoPlayer.setPlayWhenReady(false);
         }
     }
 
     public void play() {
         paused = false;
+        stopSeek();
+        if (currentPlaybackRate != 1) {
+            setPlaybackRate(1, false);
+        }
         exoPlayer.setPlayWhenReady(true);
     }
 
@@ -319,24 +325,70 @@ public class Player {
 
     public void stop() {
         paused = false;
+        stopSeek();
+        if (currentPlaybackRate != 1) {
+            setPlaybackRate(1, false);
+        }
         exoPlayer.stop();
     }
 
     public void seekTo(long timeMillis) {
+        seeking = true;
         long seekPosition = exoPlayer.getDuration() == 0 ? 0 : Math.min(Math.max(0, timeMillis), exoPlayer.getDuration());
         exoPlayer.seekTo(seekPosition);
         JSONObject payload = Payload.seekEvent(Player.this.exoPlayer, timeMillis);
         new CallbackResponse(Player.this.callbackContext).send(PluginResult.Status.OK, payload, true);
     }
 
+    private void stopSeek() {
+      seeking = false;
+      if (handler != null) {
+        handler.removeCallbacks(null);
+      }
+    }
+
+    // public void setPlaybackRate(float speed, boolean muteAudio) {
+    //     if (Math.abs(speed) >= 16) {
+    //       speed = 2;
+    //     }
+    //
+    //     currentPlaybackRate = speed;
+    //
+    //     exoPlayer.setPlaybackParameters(new PlaybackParameters(speed,1));
+    // }
+
     public void setPlaybackRate(float speed, boolean muteAudio) {
-          if (Math.abs(speed) >= 32) {
-            speed = 1;
-          }
+        if (Math.abs(speed) >= config.getMaxPlaybackRate()) {
+            speed = 2;
+        }
 
-          currentPlaybackRate = speed;
+        currentPlaybackRate = speed;
 
-          exoPlayer.setPlaybackParameters(new PlaybackParameters(speed,1));
+        if (Math.abs(speed) >= 8) {
+            if (seeking == false) {
+                seeking = true;
+                final int delay = 2000; //2 seconds
+
+                //When the playback rate is 8x or higher we pause the player and
+                // reset the players internal playback rate, to prevent the player from looking weird when seeking
+                pause();
+                if (currentPlaybackRate != 1) {
+                    exoPlayer.setPlaybackParameters(new PlaybackParameters(1,1));
+                }
+
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        Log.d(TAG, "setPlaybackRate: " + currentPlaybackRate + ", getPosition: " + exoPlayer.getCurrentPosition() + ", seekTo: " + (exoPlayer.getCurrentPosition() + (long)(currentPlaybackRate * 1000) + delay));
+                        seekTo(exoPlayer.getCurrentPosition() + (long)(currentPlaybackRate * 1000) + delay);
+                        handler.postDelayed(this, delay);
+                    }
+                }, delay);
+            }
+        } else {
+            stopSeek();
+            exoPlayer.setPlaybackParameters(new PlaybackParameters(currentPlaybackRate,1));
+        }
     }
 
     public float getPlaybackRate() {
