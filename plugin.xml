@@ -25,7 +25,7 @@
             </feature>
         </config-file>
 
-        <source-file src="src/res/values/colors.xml" target-dir="res/values/"/>
+        <source-file src="src/res/values/exoplayer_colors.xml" target-dir="res/values/"/>
         <source-file src="src/res/values/ids.xml" target-dir="res/values/"/>
 
         <source-file src="src/android/CallbackResponse.java" target-dir="src/co/frontyard/cordova/plugin/exoplayer/"/>
