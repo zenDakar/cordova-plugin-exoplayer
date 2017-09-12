@@ -26,8 +26,8 @@ module.exports = {
     setup: function (parameters, successCallback, errorCallback) {
         cordova.exec(successCallback, errorCallback, "ExoPlayer", "setup", [parameters || {url: "http://dummy"}]);
     },
-    setStream: function (url, successCallback, errorCallback) {
-        cordova.exec(successCallback, errorCallback, "ExoPlayer", "setStream", [url]);
+    setStream: function (url, loop, successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, "ExoPlayer", "setStream", [url, loop]);
     },
     playPause: function (successCallback, errorCallback) {
         cordova.exec(successCallback, errorCallback, "ExoPlayer", "playPause", []);

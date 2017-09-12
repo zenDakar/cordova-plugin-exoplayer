@@ -24,11 +24,14 @@
 package co.frontyard.cordova.plugin.exoplayer;
 
 import android.net.*;
+import android.util.Log;
+
 import org.apache.cordova.*;
 import org.json.*;
 
 public class Plugin extends CordovaPlugin {
     private Player player;
+    private static final String TAG = "ExoPlayerPlugin";
 
     @Override
     public boolean execute(final String action, final JSONArray data, final CallbackContext callbackContext) throws JSONException {
@@ -53,9 +56,10 @@ public class Plugin extends CordovaPlugin {
                     return false;
                 }
                 final String url = data.optString(0, null);
+                final boolean loop = data.optBoolean(1);
                 cordova.getActivity().runOnUiThread(new Runnable() {
                     public void run() {
-                        self.player.setStream(Uri.parse(url));
+                        self.player.setStream(Uri.parse(url), loop);
                         new CallbackResponse(callbackContext).send(PluginResult.Status.NO_RESULT, true);
                     }
                 });
@@ -211,4 +215,33 @@ public class Plugin extends CordovaPlugin {
             return false;
         }
     }
+
+    // @Override
+    // public void onStop() {
+    //     if (player != null) {
+    //         player.close();
+    //         player = null;
+    //     }
+    //     super.onStop();
+    // }
+    //
+    // @Override
+    // public void onDestroy() {
+    //     if (player != null) {
+    //         player.close();
+    //         player = null;
+    //     }
+    //     super.onDestroy();
+    // }
+    //
+    // @Override
+    // public void onReset() {
+    //     Log.d(TAG, "############## onReset");
+    //     if (player != null) {
+    //         player.close();
+    //         player = null;
+    //     }
+    //
+    //     super.onReset();
+    // }
 }

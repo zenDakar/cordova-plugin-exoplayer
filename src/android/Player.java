@@ -58,7 +58,6 @@ public class Player {
     private SimpleExoPlayer exoPlayer;
     private SimpleExoPlayerView exoView;
     private CordovaWebView webView;
-    private int controllerVisibility;
     private boolean paused = false;
     private boolean seeking = false;
     private float currentPlaybackRate = 1.0f;
@@ -140,16 +139,14 @@ public class Player {
     };
 
     public void createPlayer() {
-        if (!config.isAudioOnly()) {
-            createView();
-        }
+        createView();
         preparePlayer(config.getUri());
     }
 
     public void createView() {
         exoView = new SimpleExoPlayerView(this.activity);
 
-        exoView .setLayoutParams(new LinearLayout.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT));
+        exoView.setLayoutParams(new LinearLayout.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT));
         if (config.isAspectRatioFillScreen()) {
             exoView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
         }
@@ -157,6 +154,7 @@ public class Player {
         exoView.setRewindIncrementMs(config.getSkipTimeMs());
         exoView.setKeepScreenOn(true);
         exoView.setUseController(false);
+        exoView.bringToFront();
 
         //Insert the exoView below the cordova webView
         FrameLayout webViewParent = (FrameLayout)webView.getView().getParent();
@@ -190,14 +188,15 @@ public class Player {
         //TrackSelection.Factory videoTrackSelectionFactory = new AdaptiveVideoTrackSelection.Factory(bandwidthMeter);
         TrackSelector trackSelector = new DefaultTrackSelector();
         LoadControl loadControl = new DefaultLoadControl();
+        RenderersFactory renderersFactory = new DefaultRenderersFactory(this.activity);
 
-        exoPlayer = ExoPlayerFactory.newSimpleInstance(this.activity, trackSelector, loadControl);
+        exoPlayer = ExoPlayerFactory.newSimpleInstance(renderersFactory, trackSelector, loadControl);
         exoPlayer.addListener(playerEventListener);
-        if (exoView != null) {
-            exoView.setPlayer(exoPlayer);
-        }
+        //if (exoView != null) {
+        exoView.setPlayer(exoPlayer);
+        //}
 
-        MediaSource mediaSource = getMediaSource(uri, bandwidthMeter);
+        MediaSource mediaSource = getMediaSource(uri, bandwidthMeter, true);
         if (mediaSource != null) {
             long offset = config.getSeekTo();
             if (offset > -1) {
@@ -212,7 +211,7 @@ public class Player {
         }
     }
 
-    private MediaSource getMediaSource(Uri uri, DefaultBandwidthMeter bandwidthMeter) {
+    private MediaSource getMediaSource(Uri uri, DefaultBandwidthMeter bandwidthMeter, boolean loop) {
         String userAgent = Util.getUserAgent(this.activity, config.getUserAgent());
         Handler mainHandler = new Handler();
         int connectTimeout = 10 * 1000;
@@ -241,7 +240,11 @@ public class Player {
                 break;
             default:
                 ExtractorsFactory extractorsFactory = new DefaultExtractorsFactory();
-                mediaSource = new ExtractorMediaSource(uri, dataSourceFactory, extractorsFactory, mainHandler, null);
+                if (loop) {
+                  mediaSource = new LoopingMediaSource(new ExtractorMediaSource(uri, dataSourceFactory, extractorsFactory, mainHandler, null), 99999);
+                } else {
+                  mediaSource = new ExtractorMediaSource(uri, dataSourceFactory, extractorsFactory, mainHandler, null);
+                }
                 break;
         }
 
@@ -278,9 +281,13 @@ public class Player {
     }
 
     public void setStream(Uri uri) {
+        setStream(uri, false);
+    }
+
+    public void setStream(Uri uri, boolean loop) {
         if (uri != null) {
             DefaultBandwidthMeter bandwidthMeter = new DefaultBandwidthMeter();
-            MediaSource mediaSource = getMediaSource(uri, bandwidthMeter);
+            MediaSource mediaSource = getMediaSource(uri, bandwidthMeter, loop);
             exoPlayer.prepare(mediaSource);
             play();
         }
